@@ -10,9 +10,16 @@ public abstract class Expense {
     /* Metódo da Classe
     As depesas filhas vão receber o atributo descricao
     */
+
+    // Descricao - Get e Set
     public String getDescricao() {
         return descricao;
     }
+
+    public void setDescricao(String descricao){
+        this.descricao = descricao;
+    }
+    
     /* Metódo da Classe
     Vai funcionar diferente pra cada despesa filha
     */

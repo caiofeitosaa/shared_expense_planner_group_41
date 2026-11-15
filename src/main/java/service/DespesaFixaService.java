@@ -1,5 +1,5 @@
 package service;
 
-public class FixedExpenseService {
+public class DespesaFixaService {
     
 }

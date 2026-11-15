@@ -1,4 +1,4 @@
 package controller;
 
-public class UserController {
+public class ParticipanteController {
 }

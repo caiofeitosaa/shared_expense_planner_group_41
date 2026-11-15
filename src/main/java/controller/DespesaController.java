@@ -1,4 +1,4 @@
 package controller;
 
-public class ExpenseController {
+public class DespesaController {
 }

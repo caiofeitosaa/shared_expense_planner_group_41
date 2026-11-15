@@ -1,5 +1,5 @@
 package repositories;
 
-public class ExpenseRepository {
+public class DespesaRepository {
 
 }

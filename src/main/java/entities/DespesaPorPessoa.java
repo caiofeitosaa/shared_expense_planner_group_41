@@ -1,9 +1,9 @@
 package entities;
 
-public class ExpensePerPerson extends Expense{
+public class DespesaPorPessoa extends Despesa{
     private int valorUnitarioCent;
 
-    public ExpensePerPerson(String descricao, int valorUnitarioCent){
+    public DespesaPorPessoa(String descricao, int valorUnitarioCent){
         super(descricao);
         this.valorUnitarioCent = valorUnitarioCent;
     }

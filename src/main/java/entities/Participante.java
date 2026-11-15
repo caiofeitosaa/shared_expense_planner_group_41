@@ -1,12 +1,12 @@
 package entities;
 
-public class User {
+public class Participante {
 
     //Atributos
     private String nome;
     private int orcamentoCent;
     //Pede o nome e o orçamento em centavos do usuário
-    public User (String nome, int orcamentoCent){
+    public Participante (String nome, int orcamentoCent){
         this.nome = nome;
         this.orcamentoCent = orcamentoCent;
     }

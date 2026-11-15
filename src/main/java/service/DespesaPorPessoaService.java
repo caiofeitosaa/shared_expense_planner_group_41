@@ -1,5 +1,5 @@
 package service;
 
-public class ExpensePerPersonService {
+public class DespesaPorPessoaService {
     
 }

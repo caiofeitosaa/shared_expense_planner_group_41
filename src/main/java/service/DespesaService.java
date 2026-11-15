@@ -1,5 +1,5 @@
 package service;
 
-public class ExpenseService {
+public class DespesaService {
 
 }

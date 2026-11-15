@@ -3,11 +3,11 @@ package view;
 import javax.swing.*;
 import java.awt.*;
 
-// Janela principal: um JFrame com abas, uma por funcionalidade obrigatória.
-// Abas permitem trabalhar com um planejamento por vez, como o enunciado pede.
+// Janela principal, com uma aba pra cada funcionalidade do trabalho.
 public class MainFrame extends JFrame {
 
     private final ParticipantesPanel participantesPanel = new ParticipantesPanel();
+    private final DespesasPanel despesasPanel = new DespesasPanel();
 
     public MainFrame() {
         super("Grupo 41 - Planejador de despesas compartilhadas");
@@ -16,8 +16,8 @@ public class MainFrame extends JFrame {
 
         JTabbedPane abas = new JTabbedPane();
         abas.addTab("Participantes", participantesPanel);
-        // shortcut: abas abaixo são só reserva de lugar; serão trocadas na etapa 2 (Despesas) e 3 (Resumo/Arquivo)
-        abas.addTab("Despesas", reserva("Etapa 2: cadastro de despesas"));
+        abas.addTab("Despesas", despesasPanel);
+        // shortcut: essa aba ainda é só um aviso, falta fazer na etapa 3 (Resumo/Arquivo)
         abas.addTab("Resumo", reserva("Etapa 3: resumo, orçamento e persistência"));
         add(abas);
 
@@ -25,9 +25,13 @@ public class MainFrame extends JFrame {
         setLocationRelativeTo(null); // centraliza na tela
     }
 
-    // Controller precisa alcançar o painel para ligar os eventos
+    // O controller vai precisar disso pra ligar os botões
     public ParticipantesPanel getParticipantesPanel() {
         return participantesPanel;
+    }
+
+    public DespesasPanel getDespesasPanel() {
+        return despesasPanel;
     }
 
     private JPanel reserva(String texto) {
@@ -36,8 +40,8 @@ public class MainFrame extends JFrame {
         return p;
     }
 
-    // Ponto de entrada temporário da etapa 1, para avaliar a tela sem controller.
-    // invokeLater: Swing deve ser criado na Event Dispatch Thread
+    // main temporário só pra ver a tela sem o controller.
+    // invokeLater porque o Swing tem que ser criado na thread da interface
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new MainFrame().setVisible(true));
     }

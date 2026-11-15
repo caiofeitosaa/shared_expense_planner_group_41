@@ -6,14 +6,13 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.util.List;
 
-// Painel da aba "Participantes". A view só recebe entradas e mostra resultados:
-// validar e calcular fica para o controller e o service.
+// Aba de participantes. Aqui é só a tela (MVC): validação e cálculo ficam no controller/service.
 public class ParticipantesPanel extends JPanel {
 
     private final JTextField txtCodigo = new JTextField();
     private final JTextField txtNome = new JTextField();
     private final JTextField txtOrcamento = new JTextField();
-    // Mesma ordem das colunas da tabela, para preencher o formulário em um laço
+    // Na mesma ordem das colunas da tabela, assim dá pra usar um for pra preencher
     private final JTextField[] campos = {txtCodigo, txtNome, txtOrcamento};
 
     private final JButton btnCadastrar = new JButton("Cadastrar");
@@ -21,7 +20,7 @@ public class ParticipantesPanel extends JPanel {
     private final JButton btnExcluir = new JButton("Excluir");
     private final JButton btnLimpar = new JButton("Limpar");
 
-    // Células não editáveis: toda alteração passa pelo formulário e, portanto, pelo controller
+    // Tabela sem edição direta, pra mudar algo tem que usar o formulário (assim não pula a validação)
     private final DefaultTableModel tabelaModel = new DefaultTableModel(new String[]{"Código", "Nome", "Orçamento (R$)"}, 0) {
         @Override
         public boolean isCellEditable(int row, int column) {
@@ -34,7 +33,7 @@ public class ParticipantesPanel extends JPanel {
         setLayout(new BorderLayout(8, 8));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // GridLayout de 2 colunas: rótulo à esquerda, campo à direita, sem restrições a configurar
+        // GridLayout com 2 colunas (texto e campo), é o mais fácil de alinhar
         JPanel form = new JPanel(new GridLayout(0, 2, 6, 6));
         form.setBorder(BorderFactory.createTitledBorder("Dados do participante"));
         form.add(new JLabel("Código:"));
@@ -54,7 +53,7 @@ public class ParticipantesPanel extends JPanel {
         add(new JScrollPane(tabela), BorderLayout.CENTER);
 
         tabela.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        // Clicar numa linha preenche o formulário e entra no modo de edição
+        // Ao clicar numa linha, joga os dados dela no formulário e libera Alterar/Excluir
         tabela.getSelectionModel().addListSelectionListener(e -> {
             int linha = tabela.getSelectedRow();
             if (e.getValueIsAdjusting() || linha < 0) return;
@@ -65,7 +64,8 @@ public class ParticipantesPanel extends JPanel {
         modoEdicao(false);
     }
 
-    // Em edição o código fica bloqueado (é a identidade única); fora dela só "Cadastrar" está ativo
+    // Editando, o código trava (ele é único e não pode mudar) e só Alterar/Excluir funcionam.
+    // Fora disso só o Cadastrar
     private void modoEdicao(boolean editando) {
         txtCodigo.setEnabled(!editando);
         btnCadastrar.setEnabled(!editando);
@@ -73,9 +73,9 @@ public class ParticipantesPanel extends JPanel {
         btnExcluir.setEnabled(editando);
     }
 
-    // ---- API para o controller ----
+    // ---- Métodos que o controller vai usar ----
 
-    // Texto cru: converter para centavos e validar é papel do controller/model
+    // Devolvo o texto do jeito que o usuário digitou, o controller que converte pra centavos e valida
     public String getCodigo() { return txtCodigo.getText().trim(); }
     public String getNome() { return txtNome.getText().trim(); }
     public String getOrcamento() { return txtOrcamento.getText().trim(); }
@@ -84,7 +84,7 @@ public class ParticipantesPanel extends JPanel {
     public void onAlterar(ActionListener l) { btnAlterar.addActionListener(l); }
     public void onExcluir(ActionListener l) { btnExcluir.addActionListener(l); }
 
-    // Recarrega a tabela do model, assim a tela reflete o estado real mesmo após uma operação recusada
+    // Refaz a tabela toda com o que veio do model, assim a tela nunca fica diferente dos dados
     public void setLinhas(List<Object[]> linhas) {
         tabelaModel.setRowCount(0);
         linhas.forEach(tabelaModel::addRow);
@@ -97,7 +97,7 @@ public class ParticipantesPanel extends JPanel {
         modoEdicao(false);
     }
 
-    // Mensagens de validação vindas do controller
+    // Mostra a mensagem de erro que o controller mandar
     public void mostrarErro(String mensagem) {
         JOptionPane.showMessageDialog(this, mensagem, "Erro", JOptionPane.ERROR_MESSAGE);
     }

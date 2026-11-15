@@ -1,11 +1,11 @@
 package entities;
 
-public class FixedExpense extends Expense {
+public class DespesaFixa extends Despesa {
     
     private int valorTotalCent;
 
-    /* Aqui ele vai pedir descrição da classe mãe (Expense) e o valor total em centavos */
-    public FixedExpense(String descricao, int valorTotalCent) {
+    /* Aqui ele vai pedir descrição da classe mãe (Despesa) e o valor total em centavos */
+    public DespesaFixa(String descricao, int valorTotalCent) {
         super(descricao);
         this.valorTotalCent = valorTotalCent;
     }
@@ -17,6 +17,6 @@ public class FixedExpense extends Expense {
 }
 
 /* 
-- Override é um metódo que vai sobrescrever o metódo da classe mãe (Expense);
+- Override é um metódo que vai sobrescrever o metódo da classe mãe (Despesa);
 - 
 */

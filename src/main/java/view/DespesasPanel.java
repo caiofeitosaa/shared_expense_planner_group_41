@@ -12,7 +12,7 @@ public class DespesasPanel extends JPanel {
 
     private final JTextField txtDescricao = new JTextField();
     private final JTextField txtValor = new JTextField();
-    // Os dois tipos que o professor pediu (FixedExpense e ExpensePerPerson)
+    // Os dois tipos que o professor pediu (DespesaFixa e DespesaPorPessoa)
     private final JComboBox<String> cmbTipo = new JComboBox<>(new String[]{"Fixa", "Por pessoa"});
     // JList porque dá pra selecionar várias pessoas na mesma despesa
     private final DefaultListModel<String> participantesModel = new DefaultListModel<>();

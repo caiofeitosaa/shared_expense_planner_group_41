@@ -1,9 +1,9 @@
 package entities;
 
-public abstract class Expense {
+public abstract class Despesa {
     private String descricao;
 
-    public Expense(String descricao) {
+    public Despesa(String descricao) {
         this.descricao = descricao;
     }
 

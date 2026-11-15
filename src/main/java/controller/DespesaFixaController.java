@@ -1,5 +1,5 @@
 package controller;
 
-public class FixedExpenseController {
+public class DespesaFixaController {
     
 }

@@ -8,6 +8,7 @@ public class MainFrame extends JFrame {
 
     private final ParticipantesPanel participantesPanel = new ParticipantesPanel();
     private final DespesasPanel despesasPanel = new DespesasPanel();
+    private final ResumoPanel resumoPanel = new ResumoPanel();
 
     public MainFrame() {
         super("Grupo 41 - Planejador de despesas compartilhadas");
@@ -17,8 +18,7 @@ public class MainFrame extends JFrame {
         JTabbedPane abas = new JTabbedPane();
         abas.addTab("Participantes", participantesPanel);
         abas.addTab("Despesas", despesasPanel);
-        // shortcut: essa aba ainda é só um aviso, falta fazer na etapa 3 (Resumo/Arquivo)
-        abas.addTab("Resumo", reserva("Etapa 3: resumo, orçamento e persistência"));
+        abas.addTab("Resumo", resumoPanel);
         add(abas);
 
         pack();
@@ -34,10 +34,8 @@ public class MainFrame extends JFrame {
         return despesasPanel;
     }
 
-    private JPanel reserva(String texto) {
-        JPanel p = new JPanel(new GridBagLayout());
-        p.add(new JLabel(texto));
-        return p;
+    public ResumoPanel getResumoPanel() {
+        return resumoPanel;
     }
 
     // main temporário só pra ver a tela sem o controller.

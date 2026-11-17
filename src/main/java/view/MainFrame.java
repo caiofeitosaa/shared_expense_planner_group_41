@@ -1,7 +1,6 @@
 package view;
 
 import javax.swing.*;
-import java.awt.*;
 
 // Janela principal, com uma aba pra cada funcionalidade do trabalho.
 public class MainFrame extends JFrame {

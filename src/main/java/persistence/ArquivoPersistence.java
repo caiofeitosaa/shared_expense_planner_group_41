@@ -2,27 +2,29 @@ package persistence;
 
 import java.io.*;
 import java.nio.file.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class ArquivoPersistence<T extends Serializable> {
 
-    private final String caminhoArquivo;
+    private final Path caminhoArquivo;
+    private final Class<T> tipo;
 
-    public ArquivoPersistence(String caminhoArquivo) {
+
+    public ArquivoPersistence(Path caminhoArquivo, Class<T> tipo) {
+        if (caminhoArquivo == null || tipo == null) {
+            throw new IllegalArgumentException("Caminho e tipo são obrigatórios.");
+        }
         this.caminhoArquivo = caminhoArquivo;
+        this.tipo = tipo;
     }
 
-    // Salva uma lista de objetos no arquivo
+    // Salva um objeto no arquivo
     public void salvar(T dados) {
 
         try {
-            Path caminho = Paths.get(caminhoArquivo);
 
-            Files.createDirectories(caminho.toAbsolutePath().getParent());
+            Files.createDirectories(caminhoArquivo.toAbsolutePath().getParent());
 
-            try (ObjectOutputStream output = new ObjectOutputStream(
-                    new FileOutputStream(caminhoArquivo))) {
+            try (ObjectOutputStream output = new ObjectOutputStream(Files.newOutputStream(caminhoArquivo))) {
 
                 output.writeObject(dados);
             }
@@ -36,14 +38,12 @@ public class ArquivoPersistence<T extends Serializable> {
     @SuppressWarnings("unchecked")
     public T carregar() throws ArquivoNaoEncontradoException {
 
-        File arquivo = new File(caminhoArquivo);
 
-        if (!arquivo.exists()) {
+        if (!Files.exists(caminhoArquivo)) {
             throw new ArquivoNaoEncontradoException("Nenhum arquivo encontrado em: " + caminhoArquivo);
         }
 
-        try (ObjectInputStream input = new ObjectInputStream(
-                new FileInputStream(arquivo))) {
+        try (ObjectInputStream input = new ObjectInputStream(Files.newInputStream(caminhoArquivo))) {
 
             return (T) input.readObject();
 

@@ -26,4 +26,14 @@ public class DadosSalvos implements Serializable {
     public List<Despesa> getDespesas() {
         return List.copyOf(despesas);
     }
+
+    public void definirParticipantes(List<Participante> participantes) {
+        this.participantes.clear();
+        this.participantes.addAll(participantes);
+    }
+
+    public void definirDespesas(List<Despesa> despesas) {
+        this.despesas.clear();
+        this.despesas.addAll(despesas);
+    }
 }

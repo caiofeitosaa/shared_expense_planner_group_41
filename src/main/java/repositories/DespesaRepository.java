@@ -1,5 +1,8 @@
 package repositories;
 
-public class DespesaRepository {
+import entities.Despesa;
 
+import java.util.List;
+
+public class DespesaRepository {
 }

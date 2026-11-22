@@ -1,7 +1,18 @@
 package entities;
 
-public abstract class Despesa {
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+public abstract class Despesa implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     private String descricao;
+    private final List<Participante> participantes = new ArrayList<>();
 
     public Despesa(String descricao) {
         this.descricao = descricao;
@@ -19,11 +30,24 @@ public abstract class Despesa {
     public void setDescricao(String descricao){
         this.descricao = descricao;
     }
+
+    public List<Participante> getParticipantes() {
+        return List.copyOf(participantes);
+    }
+
+    public void definirParticipantes(List<Participante> participantes) {
+        this.participantes.clear();
+        if (participantes != null) {
+            this.participantes.addAll(participantes);
+        }
+    }
     
     /* Metódo da Classe
     Vai funcionar diferente pra cada despesa filha
     */
     public abstract int calcTotalCent(int qtdUser);
+
+    public abstract Map<Participante, Integer> calcularRateio();
 
 }
 

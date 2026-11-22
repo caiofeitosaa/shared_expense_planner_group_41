@@ -37,3 +37,7 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Dados persistidos ###
+dados/*.dat
+dados/*.tmp

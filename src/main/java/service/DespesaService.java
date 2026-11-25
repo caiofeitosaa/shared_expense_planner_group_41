@@ -1,6 +1,7 @@
 package service;
 
 import entities.Despesa;
+import entities.Participante;
 import repositories.DespesaRepository;
 
 import java.util.List;
@@ -44,20 +45,25 @@ public class DespesaService {
         return despesaRepository.listarTodas();
     }
 
-    // Não deixa passar despesa vazia nem sem participantes (sem ninguém não dá pra dividir)
+    // Não deixa passar despesa vazia, sem participantes (sem ninguém não dá pra dividir)
+    // nem com o mesmo participante duas vezes (ele pagaria em dobro)
     private void conferirDespesa(Despesa despesa) {
         if (despesa == null) {
-            throw new RuntimeException("Despesa inválida.");
+            throw new IllegalArgumentException("Despesa inválida.");
         }
-        if (despesa.getParticipantes().isEmpty()) {
-            throw new RuntimeException("A despesa precisa ter pelo menos um participante.");
+        List<Participante> participantes = despesa.getParticipantes();
+        if (participantes.isEmpty()) {
+            throw new IllegalArgumentException("A despesa precisa ter pelo menos um participante.");
+        }
+        if (participantes.stream().map(Participante::getCodigo).distinct().count() != participantes.size()) {
+            throw new IllegalArgumentException("A despesa tem participante repetido.");
         }
     }
 
     // Mesma mensagem do ParticipanteService quando não acha o item
     private void conferirExiste(String descricao) {
         if (descricao == null || buscar(descricao) == null) {
-            throw new RuntimeException("Despesa não encontrada.");
+            throw new IllegalArgumentException("Despesa não encontrada.");
         }
     }
 }

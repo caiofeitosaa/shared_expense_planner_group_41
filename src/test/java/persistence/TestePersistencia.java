@@ -13,7 +13,8 @@ public class TestePersistencia {
             System.out.println("Carregou: " + dados.getParticipantes().size() + " participantes");
         } catch (ArquivoNaoEncontradoException e) {
             System.out.println("Primeira execução: " + e.getMessage());
-        } catch (PersistenciaException e) {
+        } catch (RuntimeException e) {
+            // Arquivo existe mas está corrompido: o ArquivoPersistence lança RuntimeException
             System.out.println("Erro: " + e.getMessage());
         }
     }

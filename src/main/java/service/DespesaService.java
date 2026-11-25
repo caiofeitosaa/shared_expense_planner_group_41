@@ -11,7 +11,7 @@ public class DespesaService {
 
     private final DespesaRepository despesaRepository;
 
-    public DespesaService(DespesaRepository despesaRepository) {
+    public DespesaService(DespesaRepository despesaRepository) { 
         this.despesaRepository = despesaRepository;
     }
 

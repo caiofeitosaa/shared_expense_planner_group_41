@@ -3,7 +3,7 @@ package persistence;
 import java.io.*;
 import java.nio.file.*;
 
-public class ArquivoPersistence<T extends Serializable> {
+public class ArquivoPersistence<T extends Serializable> implements Persistencia<T> {
 
     private final Path caminhoArquivo;
     private final Class<T> tipo;
@@ -18,6 +18,7 @@ public class ArquivoPersistence<T extends Serializable> {
     }
 
     // Salva um objeto no arquivo
+    @Override
     public void salvar(T dados) {
 
         try {
@@ -35,7 +36,7 @@ public class ArquivoPersistence<T extends Serializable> {
     }
 
     // Recupera os objetos armazenados
-    @SuppressWarnings("unchecked")
+    @Override
     public T carregar() throws ArquivoNaoEncontradoException {
 
 
@@ -45,7 +46,8 @@ public class ArquivoPersistence<T extends Serializable> {
 
         try (ObjectInputStream input = new ObjectInputStream(Files.newInputStream(caminhoArquivo))) {
 
-            return (T) input.readObject();
+            // cast pelo tipo informado: arquivo com outro objeto dentro já falha aqui
+            return tipo.cast(input.readObject());
 
         } catch (IOException | ClassNotFoundException e) {
             throw new RuntimeException("Erro ao carregar os dados.", e);

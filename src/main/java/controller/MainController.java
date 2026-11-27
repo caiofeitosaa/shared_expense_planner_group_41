@@ -9,6 +9,7 @@ import javax.swing.SwingUtilities;
 import persistence.ArquivoNaoEncontradoException;
 import persistence.ArquivoPersistence;
 import persistence.DadosSalvos;
+import persistence.Persistencia;
 import repositories.DespesaRepository;
 import repositories.ParticipanteRepository;
 import service.DespesaFixaService;
@@ -36,7 +37,7 @@ public class MainController {
     // Os dois repositories usam esse mesmo objeto. Pra carregar outro arquivo
     // a gente troca o conteúdo dele, não o objeto
     private final DadosSalvos dados;
-    private final ArquivoPersistence<DadosSalvos> persistencia = new ArquivoPersistence<>(ARQUIVO_PADRAO, DadosSalvos.class);
+    private final Persistencia<DadosSalvos> persistencia = new ArquivoPersistence<>(ARQUIVO_PADRAO, DadosSalvos.class);
 
     public MainController() {
         this.dados = carregarInicial();
@@ -79,7 +80,8 @@ public class MainController {
         File arquivo = resumo.escolherArquivo(true);
         if (arquivo == null) return;
         try {
-            new ArquivoPersistence<>(arquivo.toPath(), DadosSalvos.class).salvar(dados);
+            Persistencia<DadosSalvos> escolhido = new ArquivoPersistence<>(arquivo.toPath(), DadosSalvos.class);
+            escolhido.salvar(dados);
             resumo.mostrarInfo("Planejamento salvo em " + arquivo.getName());
         } catch (RuntimeException e) {
             resumo.mostrarErro("Erro ao salvar o arquivo.");
@@ -92,7 +94,8 @@ public class MainController {
         File arquivo = resumo.escolherArquivo(false);
         if (arquivo == null) return;
         try {
-            DadosSalvos novos = new ArquivoPersistence<>(arquivo.toPath(), DadosSalvos.class).carregar();
+            Persistencia<DadosSalvos> escolhido = new ArquivoPersistence<>(arquivo.toPath(), DadosSalvos.class);
+            DadosSalvos novos = escolhido.carregar();
             // Troca tudo de uma vez (não soma), assim não duplica registros
             dados.definirParticipantes(new ArrayList<>(novos.getParticipantes()));
             dados.definirDespesas(new ArrayList<>(novos.getDespesas()));

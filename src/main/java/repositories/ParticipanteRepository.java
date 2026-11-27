@@ -1,7 +1,7 @@
 package repositories;
 
 import entities.Participante;
-import persistence.ArquivoPersistence;
+import persistence.Persistencia;
 import persistence.DadosSalvos;
 
 import java.util.List;
@@ -11,11 +11,11 @@ public class ParticipanteRepository {
 
 
     private final DadosSalvos dados;
-    private final ArquivoPersistence<DadosSalvos> persistencia;
+    private final Persistencia<DadosSalvos> persistencia;
 
     public ParticipanteRepository(
             DadosSalvos dados,
-            ArquivoPersistence<DadosSalvos> persistencia) {
+            Persistencia<DadosSalvos> persistencia) {
 
         this.dados = dados;
         this.persistencia = persistencia;

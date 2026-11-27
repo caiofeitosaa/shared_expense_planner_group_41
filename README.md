@@ -106,28 +106,6 @@ java -ea -cp out service.TesteParticipanteService
 
 Cada um termina com `tudo certo` quando passa. Se algo der errado, aparece um `AssertionError` com a linha do problema.
 
-### Testes pedidos no trabalho e onde cada um está
-
-| Cenário | Resultado esperado | Onde é testado |
-|---|---|---|
-| Caso principal | Ana 75,00, Bruno 60,00, Carla 75,00, total 210,00; Ana e Carla excedem 5,00 | `TesteResumoService` e roteiro manual abaixo |
-| Centavos no rateio | R$ 100,00 para os códigos 1, 2 e 3 dá 33,34 / 33,33 / 33,33 | `TesteDespesaFixaService` |
-| Entrada inválida | Recusa despesa sem participantes, valor negativo, campo vazio, participante repetido e descrição repetida, sem mudar os dados | `TesteDespesaFixaService`, `TesteDespesaPorPessoaService`, `TesteParticipanteService` |
-| Alteração de orçamento | Ana com R$ 80,00 continua pagando 75,00, agora dentro do limite | `TesteResumoService` |
-| Exclusão de despesa | Sem a atividade recreativa, fica 60,00 por pessoa e 180,00 no total | `TesteResumoService` |
-| Salvar e reiniciar | Fechar e abrir o programa recupera tudo, sem duplicar | `TesteSalvar` + `TesteCarregar` e roteiro manual |
-| Problema no arquivo | Arquivo ausente ou inválido mostra mensagem e não perde o que está aberto | `TestePersistencia` e roteiro manual |
-
-Os testes de arquivo gravam em `dados/`, então rode-os na raiz do projeto:
-
-```bash
-java -cp out persistence.TesteSalvar        # grava o caso principal em dados/viagem.dat
-java -cp out persistence.TesteCarregar      # lê o arquivo de volta e mostra participantes e despesas
-java -cp out persistence.TestePersistencia  # tenta ler dados/teste.dat, que não existe, e mostra a mensagem
-```
-
-Para testar arquivo corrompido, crie um `dados/teste.dat` com qualquer texto dentro e rode o `TestePersistencia` de novo. Ele deve mostrar "Erro ao carregar os dados." em vez de quebrar.
-
 ### Roteiro manual pela interface (caso de referência)
 
 Se preferir ver funcionando na tela, abra o programa com `dados/planejamento.dat` apagado e cadastre:

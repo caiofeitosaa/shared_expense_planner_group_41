@@ -36,10 +36,4 @@ public class MainFrame extends JFrame {
     public ResumoPanel getResumoPanel() {
         return resumoPanel;
     }
-
-    // main temporário só pra ver a tela sem o controller.
-    // invokeLater porque o Swing tem que ser criado na thread da interface
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new MainFrame().setVisible(true));
-    }
 }

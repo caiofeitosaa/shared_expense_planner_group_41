@@ -41,3 +41,5 @@ build/
 ### Dados persistidos ###
 dados/*.dat
 dados/*.tmp
+### Compilação manual (README) ###
+out/

@@ -41,6 +41,15 @@ public abstract class Despesa implements Serializable {
             this.participantes.addAll(participantes);
         }
     }
+
+    // getParticipantes devolve uma cópia que não dá pra mudar, então pra incluir/tirar alguém é por aqui
+    public void adicionarParticipante(Participante participante) {
+        this.participantes.add(participante);
+    }
+
+    public boolean removerParticipante(int codigo) {
+        return this.participantes.removeIf(p -> p.getCodigo() == codigo);
+    }
     
     /* Metódo da Classe
     Vai funcionar diferente pra cada despesa filha

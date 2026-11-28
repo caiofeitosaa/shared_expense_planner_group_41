@@ -3,9 +3,10 @@ package persistence;
 import java.io.*;
 import java.nio.file.*;
 
-public class ArquivoPersistence<T extends Serializable> implements Persistencia<T> {
+public class ArquivoPersistence<T extends Serializable> {
 
-    private final Path caminhoArquivo;
+    // tirei o final pq quando troca de planejamento o arquivo muda
+    private Path caminhoArquivo;
     private final Class<T> tipo;
 
 
@@ -17,8 +18,18 @@ public class ArquivoPersistence<T extends Serializable> implements Persistencia<
         this.tipo = tipo;
     }
 
+    public Path getCaminhoArquivo() {
+        return caminhoArquivo;
+    }
+
+    public void setCaminhoArquivo(Path caminhoArquivo) {
+        if (caminhoArquivo == null) {
+            throw new IllegalArgumentException("Caminho é obrigatório.");
+        }
+        this.caminhoArquivo = caminhoArquivo;
+    }
+
     // Salva um objeto no arquivo
-    @Override
     public void salvar(T dados) {
 
         try {
@@ -36,7 +47,7 @@ public class ArquivoPersistence<T extends Serializable> implements Persistencia<
     }
 
     // Recupera os objetos armazenados
-    @Override
+    @SuppressWarnings("unchecked")
     public T carregar() throws ArquivoNaoEncontradoException {
 
 
@@ -46,8 +57,7 @@ public class ArquivoPersistence<T extends Serializable> implements Persistencia<
 
         try (ObjectInputStream input = new ObjectInputStream(Files.newInputStream(caminhoArquivo))) {
 
-            // cast pelo tipo informado: arquivo com outro objeto dentro já falha aqui
-            return tipo.cast(input.readObject());
+            return (T) input.readObject();
 
         } catch (IOException | ClassNotFoundException e) {
             throw new RuntimeException("Erro ao carregar os dados.", e);

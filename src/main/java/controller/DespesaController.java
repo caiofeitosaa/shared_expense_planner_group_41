@@ -1,7 +1,5 @@
 package controller;
 
-import javax.swing.*;
-import java.awt.event.ActionEvent;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -10,53 +8,41 @@ import entities.DespesaFixa;
 import entities.DespesaPorPessoa;
 import entities.Participante;
 import service.DespesaService;
+import service.ParticipanteService;
 import util.Moeda;
 import view.DespesasPanel;
 
 /**
  * Controller responsável pela gestão de despesas.
+ * Lê o formulário e manda pro controller do tipo escolhido (Fixa ou Por pessoa).
  */
 public class DespesaController {
 
     private final DespesaService despesaService;
-    private final DespesaPorPessoaController despesaPorPessoaController;
+    private final ParticipanteService participanteService;
     private final DespesaFixaController despesaFixaController;
+    private final DespesaPorPessoaController despesaPorPessoaController;
     private final DespesasPanel view;
-    private ParticipanteController participanteController;
-    private ResumoController resumoController;
-
-    // Lista de participantes - sempre atualizada pelo MainController
-    private List<Participante> participantes;
+    // Avisa o MainController pra atualizar as outras abas depois de uma mudança
+    private final Runnable aoMudar;
 
     public DespesaController(DespesaService despesaService,
-                            DespesaPorPessoaController despesaPorPessoaController,
-                            DespesaFixaController despesaFixaController,
-                            DespesasPanel view) {
+                             ParticipanteService participanteService,
+                             DespesaFixaController despesaFixaController,
+                             DespesaPorPessoaController despesaPorPessoaController,
+                             DespesasPanel view,
+                             Runnable aoMudar) {
         this.despesaService = despesaService;
-        this.despesaPorPessoaController = despesaPorPessoaController;
+        this.participanteService = participanteService;
         this.despesaFixaController = despesaFixaController;
+        this.despesaPorPessoaController = despesaPorPessoaController;
         this.view = view;
-
-        // Atualiza a tabela ao iniciar
-        atualizarTabela();
+        this.aoMudar = aoMudar;
 
         // Conecta os botões da view
-        view.onIncluir(this::acaoIncluir);
-        view.onEditar(this::acaoEditar);
-        view.onExcluir(this::acaoExcluir);
-    }
-
-    public void setParticipanteController(ParticipanteController participanteController) {
-        this.participanteController = participanteController;
-    }
-
-    public void setResumoController(ResumoController resumoController) {
-        this.resumoController = resumoController;
-    }
-
-    // Texto que aparece na lista e na tabela: "Ana (R$ 70,00)"
-    private static String rotulo(Participante p) {
-        return p.getNome() + " (" + Moeda.formatar(p.getOrcamentoCent()) + ")";
+        view.onIncluir(e -> salvar(null));
+        view.onEditar(e -> salvar(descricaoSelecionada()));
+        view.onExcluir(e -> excluir());
     }
 
     // "Fixa" ou "Por pessoa" - igual ao texto do combo da tela
@@ -64,212 +50,78 @@ public class DespesaController {
         return d instanceof DespesaFixa ? "Fixa" : "Por pessoa";
     }
 
-    /**
-     * Atualiza a lista de participantes (chamado pelo aplicativo principal)
-     */
-    public void setParticipantes(List<Participante> participantes) {
-        this.participantes = participantes;
-        view.setParticipantes(participantes == null ? List.of()
-                : participantes.stream().map(DespesaController::rotulo).collect(Collectors.toList()));
+    // Valor que o usuário digitou: total na fixa, unitário na por pessoa
+    private static int valorInformado(Despesa d) {
+        return d instanceof DespesaFixa ? ((DespesaFixa) d).getValorTotalCent() : ((DespesaPorPessoa) d).getValorUnitarioCent();
     }
 
-    /**
-     * Força atualização da lista de participantes (ex: depois de cadastrar alguém)
-     */
-    public void refreshParticipantes() {
-        if (participanteController != null) {
-            setParticipantes(participanteController.getParticipanteService().listar());
-        }
+    // A tabela tem a mesma ordem da lista do service, então a linha diz qual despesa é
+    private String descricaoSelecionada() {
+        int linha = view.getLinhaSelecionada();
+        return linha < 0 ? null : despesaService.listar().get(linha).getDescricao();
     }
 
-    public void adicionarParticipante(String descricaoDespesa, Participante participante) {
-        try {
-            despesaService.adicionarParticipante(descricaoDespesa, participante);
-            atualizarTabela();
-        } catch (RuntimeException e) {
-            JOptionPane.showMessageDialog(view, e.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    public void removerParticipante(String descricaoDespesa, Participante participante) {
-        try {
-            despesaService.removerParticipante(descricaoDespesa, participante);
-            atualizarTabela();
-        } catch (RuntimeException e) {
-            JOptionPane.showMessageDialog(view, e.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    // Lê o formulário e monta a despesa. Se faltar alguma coisa mostra o erro e devolve null
-    // (usado no incluir e no editar, antes era o mesmo código copiado nos dois)
-    private Despesa montarDespesaDoFormulario() {
-        String descricao = view.getDescricao();
-        String valorStr = view.getValor();
-
-        if (descricao.isEmpty()) {
-            view.mostrarErro("Descrição é obrigatória.");
-            return null;
-        }
-        if (valorStr.isEmpty()) {
-            view.mostrarErro("Valor é obrigatório.");
-            return null;
-        }
-        // Pega a lista mais nova (pode ter cadastrado alguém agora na aba Participantes)
-        refreshParticipantesSilencioso();
-        if (participantes == null || participantes.isEmpty()) {
-            view.mostrarErro("Nenhum participante cadastrado.");
-            return null;
-        }
-
-        int valorCent;
-        try {
-            valorCent = Moeda.paraCentavos(valorStr);
-        } catch (NumberFormatException ex) {
-            view.mostrarErro("Valor deve ser um número válido (ex.: 25,50).");
-            return null;
-        }
-
-        List<String> nomesSelecionados = view.getParticipantesSelecionados().stream()
-                .map(sel -> sel.substring(0, Math.max(0, sel.lastIndexOf(" ("))).trim())
+    // A lista da tela mostra "1 - Ana" (toString do Participante). Pega o código antes do " - "
+    private List<Participante> participantesSelecionados() {
+        return view.getParticipantesSelecionados().stream()
+                .map(texto -> participanteService.buscar(Integer.parseInt(texto.substring(0, texto.indexOf(" - ")))))
                 .collect(Collectors.toList());
-        List<Participante> selecionados = participantes.stream()
-                .filter(p -> nomesSelecionados.contains(p.getNome()))
-                .collect(Collectors.toList());
-
-        if (selecionados.isEmpty()) {
-            view.mostrarErro("Selecione pelo menos um participante.");
-            return null;
-        }
-
-        Despesa despesa = "Fixa".equals(view.getTipo())
-                ? new DespesaFixa(descricao, valorCent)
-                : new DespesaPorPessoa(descricao, valorCent);
-        despesa.definirParticipantes(selecionados);
-        return despesa;
     }
 
-    private void refreshParticipantesSilencioso() {
-        if (participanteController != null) {
-            this.participantes = participanteController.getParticipanteService().listar();
-        }
-    }
-
-    private void acaoIncluir(ActionEvent e) {
+    // Serve pro Incluir (descricaoAtual null) e pro Editar (descrição da linha selecionada)
+    private void salvar(String descricaoAtual) {
         try {
-            Despesa despesa = montarDespesaDoFormulario();
-            if (despesa == null) return;
-
-            // se já existe (ex: Transporte) pergunta se quer atualizar em vez de dar erro
-            Despesa existente = despesaService.listar().stream()
-                    .filter(d -> d.getDescricao().equalsIgnoreCase(despesa.getDescricao()))
-                    .findFirst().orElse(null);
-            if (existente != null) {
-                if (!view.confirmar("Já existe a despesa \"" + existente.getDescricao() + "\".\n"
-                        + "Atualizar ela com as " + despesa.getParticipantes().size()
-                        + " pessoas marcadas e redividir o valor?")) {
-                    return;
-                }
-                despesaService.alterar(existente.getDescricao(), despesa);
-            } else {
-                despesaService.cadastrar(despesa);
-            }
-            atualizarTabela();
-            atualizarResumo();
-        } catch (RuntimeException ex) {
-            view.mostrarErro(ex.getMessage());
-        }
-    }
-
-    private void acaoEditar(ActionEvent e) {
-        try {
-            int linhaSelecionada = view.getLinhaSelecionada();
-            if (linhaSelecionada < 0) {
-                view.mostrarErro("Selecione uma despesa para alterar.");
+            if (view.getValor().isEmpty()) {
+                view.mostrarErro("Valor é obrigatório.");
                 return;
             }
-            String descricaoAtual = (String) view.getValorCelda(linhaSelecionada, 0);
+            int valorCent = Moeda.paraCentavos(view.getValor());
+            List<Participante> participantes = participantesSelecionados();
+            boolean fixa = "Fixa".equals(view.getTipo());
 
-            Despesa despesa = montarDespesaDoFormulario();
-            if (despesa == null) return;
-
-            despesaService.alterar(descricaoAtual, despesa);
-            atualizarTabela();
-            atualizarResumo();
+            if (descricaoAtual == null && fixa) {
+                despesaFixaController.cadastrar(view.getDescricao(), valorCent, participantes);
+            } else if (descricaoAtual == null) {
+                despesaPorPessoaController.cadastrar(view.getDescricao(), valorCent, participantes);
+            } else if (fixa) {
+                despesaFixaController.alterar(descricaoAtual, view.getDescricao(), valorCent, participantes);
+            } else {
+                despesaPorPessoaController.alterar(descricaoAtual, view.getDescricao(), valorCent, participantes);
+            }
+            aoMudar.run();
+        } catch (NumberFormatException ex) {
+            view.mostrarErro("Valor deve ser um número válido (ex.: 25,50).");
         } catch (RuntimeException ex) {
             view.mostrarErro(ex.getMessage());
         }
     }
 
-    private void acaoExcluir(ActionEvent e) {
+    private void excluir() {
         try {
-            int linhaSelecionada = view.getLinhaSelecionada();
-            if (linhaSelecionada < 0) {
+            String descricao = descricaoSelecionada();
+            if (descricao == null) {
                 view.mostrarErro("Selecione uma despesa para excluir.");
                 return;
             }
-
-            String descricao = (String) view.getValorCelda(linhaSelecionada, 0);
             despesaService.remover(descricao);
-            atualizarTabela();
-            view.limparFormulario();
-            atualizarResumo();
+            aoMudar.run();
         } catch (RuntimeException ex) {
             view.mostrarErro(ex.getMessage());
         }
     }
 
-    // Quando entra alguém novo no grupo pergunta em quais despesas ele vai participar.
-    // Na fixa o valor é dividido de novo entre todo mundo
-    public void oferecerIncluirNasDespesas(Participante novo) {
-        List<Despesa> despesas = despesaService.listar();
-        if (novo == null || despesas.isEmpty()) return;
-
-        List<String> opcoes = despesas.stream()
-                .map(d -> d.getDescricao() + " (" + tipo(d) + ", " + d.getParticipantes().size() + " pessoas)")
-                .collect(Collectors.toList());
-        List<Integer> escolhidas = view.escolherDespesas(
-                novo.getNome() + " entrou no grupo. Incluir em quais despesas?\n"
-                        + "Nas despesas fixas o valor é redividido entre todos.", opcoes);
-        for (int i : escolhidas) {
-            despesaService.adicionarParticipante(despesas.get(i).getDescricao(), novo);
-        }
-        if (!escolhidas.isEmpty()) {
-            atualizarTabela();
-            atualizarResumo();
-        }
-    }
-
-    // texto da coluna "Cada um paga". Se a divisão não for exata mostra de quanto a quanto
-    private static String cadaUmPaga(Despesa d) {
-        if (d.getParticipantes().isEmpty()) return "-";
-        java.util.IntSummaryStatistics st = d.calcularRateio().values().stream()
-                .mapToInt(Integer::intValue).summaryStatistics();
-        return st.getMin() == st.getMax()
-                ? Moeda.formatar(st.getMin()) + " cada"
-                : Moeda.formatar(st.getMin()) + " a " + Moeda.formatar(st.getMax());
-    }
-
-    private void atualizarResumo() {
-        if (resumoController != null) {
-            resumoController.atualizarResumo(null);
-        }
-    }
-
     /**
-     * Atualiza a tabela da view com a lista de despesas
+     * Atualiza a lista de participantes e a tabela de despesas da view
      */
     public void atualizarTabela() {
+        view.setParticipantes(participanteService.listar().stream().map(Participante::toString).collect(Collectors.toList()));
+        // A coluna de participantes usa o mesmo texto da lista, assim clicar na linha marca as pessoas certas
         List<Object[]> linhas = despesaService.listar().stream()
                 .map(d -> new Object[]{
                         d.getDescricao(),
                         tipo(d),
-                        Moeda.formatar(d instanceof DespesaFixa
-                                ? ((DespesaFixa) d).getValorTotalCent()
-                                : ((DespesaPorPessoa) d).getValorUnitarioCent()),
-                        cadaUmPaga(d),
-                        d.getParticipantes().stream()
-                                .map(DespesaController::rotulo)
-                                .collect(Collectors.joining(", "))
+                        Moeda.formatar(valorInformado(d)),
+                        d.getParticipantes().stream().map(Participante::toString).collect(Collectors.joining(", "))
                 })
                 .collect(Collectors.toList());
         view.setLinhas(linhas);

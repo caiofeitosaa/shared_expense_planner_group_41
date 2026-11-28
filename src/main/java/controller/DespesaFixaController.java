@@ -1,46 +1,27 @@
 package controller;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
-import entities.DespesaFixa;
 import entities.Participante;
-import service.DespesaService;
+import service.DespesaFixaService;
 
 /**
  * Controller especializado para despesas do tipo Fixa.
+ * O DespesaController chama aqui quando o tipo escolhido na tela é "Fixa".
  */
 public class DespesaFixaController {
 
-    private final DespesaService despesaService;
-    private final DespesaPorPessoaController despesaPorPessoaController;
-    private final DespesaController despesaController;
+    private final DespesaFixaService despesaFixaService;
 
-    public DespesaFixaController(DespesaService despesaService,
-                                DespesaPorPessoaController despesaPorPessoaController,
-                                DespesaController despesaController) {
-        this.despesaService = despesaService;
-        this.despesaPorPessoaController = despesaPorPessoaController;
-        this.despesaController = despesaController;
+    public DespesaFixaController(DespesaFixaService despesaFixaService) {
+        this.despesaFixaService = despesaFixaService;
     }
 
-    public void cadastrarDespesaFixa(String descricao, int valorCent, List<Participante> participantes) {
-        if (participantes.isEmpty()) {
-            throw new RuntimeException("A despesa precisa ter pelo menos um participante.");
-        }
-        DespesaFixa despesa = new DespesaFixa(descricao, valorCent);
-        despesa.definirParticipantes(participantes);
-        despesaService.cadastrar(despesa);
-        if (despesaController != null) {
-            despesaController.atualizarTabela();
-        }
+    public void cadastrar(String descricao, int valorTotalCent, List<Participante> participantes) {
+        despesaFixaService.cadastrar(descricao, valorTotalCent, participantes);
     }
 
-    public List<String> calcularRateioDespesaFixa(String descricao) {
-        var despesa = despesaService.buscar(descricao);
-        var rateio = despesa.calcularRateio();
-        return rateio.entrySet().stream()
-                .map(e -> e.getKey().getNome() + ": R$ " + String.format("%.2f", e.getValue() / 100.0))
-                .collect(Collectors.toList());
+    public void alterar(String descricaoAtual, String novaDescricao, int valorTotalCent, List<Participante> participantes) {
+        despesaFixaService.alterar(descricaoAtual, novaDescricao, valorTotalCent, participantes);
     }
 }

@@ -1,7 +1,7 @@
 package repositories;
 
 import entities.Despesa;
-import persistence.ArquivoPersistence;
+import persistence.Persistencia;
 import persistence.DadosSalvos;
 
 import java.util.ArrayList;
@@ -10,11 +10,11 @@ import java.util.List;
 public class DespesaRepository {
 
     private final DadosSalvos dados;
-    private final ArquivoPersistence<DadosSalvos> persistencia;
+    private final Persistencia<DadosSalvos> persistencia;
 
     public DespesaRepository(
             DadosSalvos dados,
-            ArquivoPersistence<DadosSalvos> persistencia) {
+            Persistencia<DadosSalvos> persistencia) {
 
         this.dados = dados;
         this.persistencia = persistencia;

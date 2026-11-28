@@ -1,8 +1,6 @@
 package entities;
 
 import java.io.Serial;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,9 +29,7 @@ public class DespesaFixa extends Despesa {
 
     @Override
     public Map<Participante, Integer> calcularRateio() {
-        List<Participante> envolvidos = new ArrayList<>(getParticipantes());
-        // Regra do trabalho: os centavos que sobram vão pros menores códigos primeiro
-        envolvidos.sort(Comparator.comparingInt(Participante::getCodigo));
+        List<Participante> envolvidos = getParticipantes();
         if (envolvidos.isEmpty()) {
             throw new IllegalStateException("A despesa precisa de pelo menos um participante.");
         }

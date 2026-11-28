@@ -1,25 +1,38 @@
 package util;
 
-import java.math.BigDecimal;
+import java.util.Locale;
 
-// Converte entre o texto da tela ("20,50") e centavos (2050). O programa todo guarda em centavos
-public class Moeda {
+// Formata e converte os valores em reais. Deixei fixo no padrão BR (1.234,56)
+// porque num pc em inglês o String.format trocava ponto e vírgula
+public final class Moeda {
+
+    private static final Locale BR = Locale.forLanguageTag("pt-BR");
 
     private Moeda() {
     }
 
-    // 7500 -> "75,00"
-    public static String formatar(int centavos) {
-        return new BigDecimal(centavos).movePointLeft(2).toPlainString().replace('.', ',');
+    // 7050 -> "R$ 70,50"
+    public static String formatar(int valorCent) {
+        return String.format(BR, "R$ %,.2f", valorCent / 100.0);
     }
 
-    // "20,50", "20.50" ou "20" -> 2050. Texto inválido lança NumberFormatException
-    // shortcut: não aceita separador de milhar ("1.000,00"), se precisar tratar aqui
-    public static int paraCentavos(String texto) {
-        try {
-            return new BigDecimal(texto.trim().replace(',', '.')).movePointRight(2).intValueExact();
-        } catch (ArithmeticException e) {
-            throw new NumberFormatException("Use no máximo 2 casas decimais.");
+    // aceita "70", "70,5", "1.234,56" e até "R$ 70,50" (quando vem da tabela)
+    public static int paraCentavos(String valor) {
+        if (valor == null) {
+            throw new NumberFormatException("Valor vazio");
         }
+        String limpo = valor.replace("R$", "").replace(" ", "").replace(" ", "").trim();
+        if (limpo.isEmpty()) {
+            throw new NumberFormatException("Valor vazio");
+        }
+        if (limpo.contains(",")) {
+            // ponto é milhar e vírgula é decimal
+            limpo = limpo.replace(".", "").replace(",", ".");
+        }
+        double numero = Double.parseDouble(limpo);
+        if (numero < 0) {
+            throw new NumberFormatException("Valor negativo");
+        }
+        return (int) Math.round(numero * 100);
     }
 }

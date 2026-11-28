@@ -4,6 +4,9 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.List;
 
 // Aba de despesas. Fiz igual ao ParticipantesPanel: aqui só tem tela,
@@ -19,12 +22,12 @@ public class DespesasPanel extends JPanel {
     private final JList<String> listaParticipantes = new JList<>(participantesModel);
 
     private final JButton btnIncluir = new JButton("Incluir");
-    private final JButton btnEditar = new JButton("Editar");
+    private final JButton btnEditar = new JButton("Salvar alteração");
     private final JButton btnExcluir = new JButton("Excluir");
     private final JButton btnLimpar = new JButton("Limpar");
 
     // Tabela sem edição direta, pra mudar algo tem que usar o formulário (assim não pula a validação)
-    private final DefaultTableModel tabelaModel = new DefaultTableModel(new String[]{"Descrição", "Tipo", "Valor (R$)", "Participantes"}, 0) {
+    private final DefaultTableModel tabelaModel = new DefaultTableModel(new String[]{"Descrição", "Tipo", "Valor (R$)", "Cada um paga", "Participantes"}, 0) {
         @Override
         public boolean isCellEditable(int row, int column) {
             return false;
@@ -46,9 +49,20 @@ public class DespesasPanel extends JPanel {
         campos.add(new JLabel("Tipo:"));
         campos.add(cmbTipo);
 
+        // clique marca/desmarca a pessoa, assim não precisa ficar segurando Ctrl
+        listaParticipantes.setSelectionModel(new DefaultListSelectionModel() {
+            @Override
+            public void setSelectionInterval(int index0, int index1) {
+                if (index0 == index1 && isSelectedIndex(index0)) {
+                    super.removeSelectionInterval(index0, index1);
+                } else {
+                    super.addSelectionInterval(index0, index1);
+                }
+            }
+        });
         listaParticipantes.setVisibleRowCount(4);
         JPanel participantes = new JPanel(new BorderLayout(0, 4));
-        participantes.add(new JLabel("Participantes (Ctrl para escolher vários):"), BorderLayout.NORTH);
+        participantes.add(new JLabel("Participantes (clique para marcar/desmarcar):"), BorderLayout.NORTH);
         participantes.add(new JScrollPane(listaParticipantes), BorderLayout.CENTER);
 
         JPanel form = new JPanel(new BorderLayout(0, 6));
@@ -63,38 +77,69 @@ public class DespesasPanel extends JPanel {
         topo.add(form, BorderLayout.CENTER);
         topo.add(botoes, BorderLayout.SOUTH);
         add(topo, BorderLayout.NORTH);
-        add(new JScrollPane(tabela), BorderLayout.CENTER);
+
+        JScrollPane scrollTabela = new JScrollPane(tabela);
+        tabela.setFillsViewportHeight(true);
+        add(scrollTabela, BorderLayout.CENTER);
 
         tabela.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         // Ao clicar numa linha, joga os dados dela no formulário
         tabela.getSelectionModel().addListSelectionListener(e -> {
+            if (e.getValueIsAdjusting()) return;
             int linha = tabela.getSelectedRow();
-            if (e.getValueIsAdjusting() || linha < 0) return;
-            txtDescricao.setText(String.valueOf(tabelaModel.getValueAt(linha, 0)));
-            cmbTipo.setSelectedItem(tabelaModel.getValueAt(linha, 1));
-            txtValor.setText(String.valueOf(tabelaModel.getValueAt(linha, 2)));
-            selecionarParticipantes(String.valueOf(tabelaModel.getValueAt(linha, 3)));
-            modoEdicao(true);
+            if (linha >= 0) {
+                txtDescricao.setText(String.valueOf(tabelaModel.getValueAt(linha, 0)));
+                cmbTipo.setSelectedItem(tabelaModel.getValueAt(linha, 1));
+                txtValor.setText(String.valueOf(tabelaModel.getValueAt(linha, 2)).replace("R$", "").trim());
+                selecionarParticipantes(String.valueOf(tabelaModel.getValueAt(linha, 4)));
+            }
+            atualizarBotoes();
         });
+
+        // clicou fora da linha -> só tira a seleção, não apaga os campos
+        MouseAdapter cliqueFora = new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (e.getSource() == tabela && tabela.rowAtPoint(e.getPoint()) >= 0) return;
+                tabela.clearSelection();
+            }
+        };
+        tabela.addMouseListener(cliqueFora);
+        scrollTabela.getViewport().addMouseListener(cliqueFora);
+        addMouseListener(cliqueFora);
+        form.addMouseListener(cliqueFora);
+        botoes.addMouseListener(cliqueFora);
+
         btnLimpar.addActionListener(e -> limparFormulario());
-        modoEdicao(false);
+        atualizarBotoes();
     }
 
-    // Marca na lista quem está no texto da tabela (ex: "1 - Ana, 2 - Bruno")
-    // shortcut: separo por ", " então nome com vírgula dá problema, se precisar usar o código no lugar
+    // Marca na lista quem está no texto da tabela (ex: "Ana (R$ 70,00), Bruno (R$ 60,00)")
+    // compara só o nome pq se mudar o orçamento o texto muda
     private void selecionarParticipantes(String texto) {
-        List<String> nomes = List.of(texto.split(", "));
+        List<String> nomes = new ArrayList<>();
+        for (String parte : texto.split("\\), ")) {
+            nomes.add(extrairNome(parte));
+        }
         listaParticipantes.clearSelection();
         for (int i = 0; i < participantesModel.size(); i++) {
-            if (nomes.contains(participantesModel.get(i))) listaParticipantes.addSelectionInterval(i, i);
+            if (nomes.contains(extrairNome(participantesModel.get(i)))) {
+                listaParticipantes.getSelectionModel().addSelectionInterval(i, i);
+            }
         }
     }
 
-    // Com linha selecionada só Editar/Excluir funcionam, senão só Incluir
-    private void modoEdicao(boolean editando) {
-        btnIncluir.setEnabled(!editando);
-        btnEditar.setEnabled(editando);
-        btnExcluir.setEnabled(editando);
+    private static String extrairNome(String texto) {
+        int idx = texto.lastIndexOf(" (");
+        return (idx >= 0 ? texto.substring(0, idx) : texto).trim();
+    }
+
+    // Incluir sempre liberado, Salvar alteração/Excluir só com linha selecionada
+    private void atualizarBotoes() {
+        boolean linhaSelecionada = tabela.getSelectedRow() >= 0;
+        btnIncluir.setEnabled(true);
+        btnEditar.setEnabled(linhaSelecionada);
+        btnExcluir.setEnabled(linhaSelecionada);
     }
 
     // ---- Métodos que o controller vai usar ----
@@ -111,17 +156,34 @@ public class DespesasPanel extends JPanel {
     public void onEditar(ActionListener l) { btnEditar.addActionListener(l); }
     public void onExcluir(ActionListener l) { btnExcluir.addActionListener(l); }
 
-    // Recebe os participantes cadastrados na aba 1 pra aparecerem na lista
+    // Recebe os participantes cadastrados na aba 1 pra aparecerem na lista (sem perder quem já tava marcado)
     public void setParticipantes(List<String> participantes) {
+        List<String> marcados = new ArrayList<>();
+        for (String s : listaParticipantes.getSelectedValuesList()) marcados.add(extrairNome(s));
         participantesModel.clear();
         participantes.forEach(participantesModel::addElement);
+        for (int i = 0; i < participantesModel.size(); i++) {
+            if (marcados.contains(extrairNome(participantesModel.get(i)))) {
+                listaParticipantes.getSelectionModel().addSelectionInterval(i, i);
+            }
+        }
     }
 
     // Refaz a tabela toda com o que veio do model, assim a tela nunca fica diferente dos dados
+    // (não limpa o formulário mais, era isso que obrigava a apertar Limpar)
     public void setLinhas(List<Object[]> linhas) {
         tabelaModel.setRowCount(0);
         linhas.forEach(tabelaModel::addRow);
-        limparFormulario();
+        tabela.clearSelection();
+        atualizarBotoes();
+    }
+
+    // Pega o valor de uma célula específica (usado para editar/excluir)
+    public Object getValorCelda(int linha, int coluna) {
+        if (linha >= 0 && linha < tabelaModel.getRowCount()) {
+            return tabelaModel.getValueAt(linha, coluna);
+        }
+        return null;
     }
 
     public void limparFormulario() {
@@ -130,7 +192,32 @@ public class DespesasPanel extends JPanel {
         cmbTipo.setSelectedIndex(0);
         listaParticipantes.clearSelection();
         tabela.clearSelection();
-        modoEdicao(false);
+        atualizarBotoes();
+        txtDescricao.requestFocusInWindow();
+    }
+
+    public boolean confirmar(String mensagem) {
+        return JOptionPane.showConfirmDialog(this, mensagem, "Confirmar",
+                JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION;
+    }
+
+    // janela com uma caixinha por despesa, devolve as posições que ficaram marcadas
+    public List<Integer> escolherDespesas(String mensagem, List<String> despesas) {
+        JPanel painel = new JPanel(new GridLayout(0, 1, 2, 2));
+        for (String linha : mensagem.split("\n")) painel.add(new JLabel(linha));
+        List<JCheckBox> caixas = new ArrayList<>();
+        for (String d : despesas) {
+            JCheckBox c = new JCheckBox(d, true);
+            caixas.add(c);
+            painel.add(c);
+        }
+        int r = JOptionPane.showConfirmDialog(this, painel, "Pessoa nova no grupo",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE);
+        List<Integer> marcadas = new ArrayList<>();
+        if (r == JOptionPane.OK_OPTION) {
+            for (int i = 0; i < caixas.size(); i++) if (caixas.get(i).isSelected()) marcadas.add(i);
+        }
+        return marcadas;
     }
 
     public void mostrarErro(String mensagem) {

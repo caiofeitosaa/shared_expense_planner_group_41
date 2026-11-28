@@ -1,119 +1,213 @@
 package controller;
 
-import java.io.File;
-import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.List;
 
-import javax.swing.SwingUtilities;
-
+import entities.Despesa;
+import entities.Participante;
 import persistence.ArquivoNaoEncontradoException;
 import persistence.ArquivoPersistence;
 import persistence.DadosSalvos;
-import persistence.Persistencia;
 import repositories.DespesaRepository;
 import repositories.ParticipanteRepository;
-import service.DespesaFixaService;
-import service.DespesaPorPessoaService;
 import service.DespesaService;
 import service.ParticipanteService;
-import service.ResumoService;
 import view.MainFrame;
-import view.ResumoPanel;
 
 /**
  * Controller principal da aplicação.
- * Cria repositories, services e controllers, liga tudo na janela e cuida de salvar/carregar.
+ * Cria tudo, liga os controllers e cuida da troca de planejamento (praia, cinema...).
  */
 public class MainController {
 
-    // Arquivo onde os repositories salvam sozinhos a cada mudança
-    private static final Path ARQUIVO_PADRAO = Path.of("dados/planejamento.dat");
-
-    private final MainFrame view = new MainFrame();
+    private final MainFrame view;
     private final ParticipanteController participanteController;
     private final DespesaController despesaController;
     private final ResumoController resumoController;
+    private final PlanejamentoController planejamentos = new PlanejamentoController();
 
-    // Os dois repositories usam esse mesmo objeto. Pra carregar outro arquivo
-    // a gente troca o conteúdo dele, não o objeto
+    // Camada de serviços
+    private final ParticipanteService participanteService;
+    private final DespesaService despesaService;
+
+    // Os dois repositories usam esse mesmo objeto. Pra trocar de planejamento
+    // a gente troca o conteúdo dele e o arquivo onde salva
     private final DadosSalvos dados;
-    private final Persistencia<DadosSalvos> persistencia = new ArquivoPersistence<>(ARQUIVO_PADRAO, DadosSalvos.class);
+    private final ArquivoPersistence<DadosSalvos> persistencia;
 
     public MainController() {
-        this.dados = carregarInicial();
+        String nomeInicial = PlanejamentoController.lerUltimo();
+        this.dados = carregarDados(nomeInicial);
+        this.persistencia = new ArquivoPersistence<>(PlanejamentoController.arquivoDe(nomeInicial), DadosSalvos.class);
+        planejamentos.setNomeAtual(nomeInicial);
 
         // Repositórios e serviços
         ParticipanteRepository participanteRepository = new ParticipanteRepository(dados, persistencia);
         DespesaRepository despesaRepository = new DespesaRepository(dados, persistencia);
-        ParticipanteService participanteService = new ParticipanteService(participanteRepository, despesaRepository);
-        DespesaService despesaService = new DespesaService(despesaRepository);
+        this.participanteService = new ParticipanteService(participanteRepository, despesaRepository);
+        this.despesaService = new DespesaService(despesaRepository);
 
-        // Controllers, cada aba avisa o recarregarTelas quando muda alguma coisa
-        participanteController = new ParticipanteController(participanteService, view.getParticipantesPanel(), this::recarregarTelas);
-        despesaController = new DespesaController(despesaService, participanteService,
-                new DespesaFixaController(new DespesaFixaService(despesaRepository)),
-                new DespesaPorPessoaController(new DespesaPorPessoaService(despesaRepository)),
-                view.getDespesasPanel(), this::recarregarTelas);
-        resumoController = new ResumoController(despesaService,
-                new ResumoService(participanteRepository, despesaRepository), view.getResumoPanel());
+        // salva logo pra ele aparecer na lista
+        persistencia.salvar(dados);
 
-        view.getResumoPanel().onSalvar(e -> salvar());
-        view.getResumoPanel().onCarregar(e -> carregar());
+        this.view = new MainFrame();
+
+        // Controllers de apoio
+        DespesaPorPessoaController porPessoaController = new DespesaPorPessoaController(despesaService, null);
+        DespesaFixaController fixaController = new DespesaFixaController(despesaService, porPessoaController, null);
+
+        // Controllers principais
+        this.participanteController = new ParticipanteController(participanteService, view.getParticipantesPanel());
+        this.despesaController = new DespesaController(despesaService, porPessoaController,
+                fixaController, view.getDespesasPanel());
+        this.resumoController = new ResumoController(despesaService, participanteService, view.getResumoPanel());
+
+        // Conecta os controllers entre si
+        despesaController.setParticipanteController(participanteController);
+        despesaController.setResumoController(resumoController);
+        participanteController.setDespesaController(despesaController);
+        participanteController.setResumoController(resumoController);
+
+        configurarEventos();
         recarregarTelas();
     }
 
-    // Arquivo ausente = primeira vez, começa vazio. Arquivo com problema também começa vazio, mas avisa
-    private DadosSalvos carregarInicial() {
+    private DadosSalvos carregarDados(String nome) {
         try {
-            return persistencia.carregar();
+            return PlanejamentoController.ler(nome);
         } catch (ArquivoNaoEncontradoException e) {
             return new DadosSalvos(new ArrayList<>(), new ArrayList<>());
         } catch (RuntimeException e) {
-            view.getResumoPanel().mostrarErro("Não foi possível abrir o último planejamento, começando um vazio.");
+            javax.swing.JOptionPane.showMessageDialog(null, "Erro ao carregar \"" + nome + "\": " + e.getMessage(),
+                    "Erro", javax.swing.JOptionPane.ERROR_MESSAGE);
             return new DadosSalvos(new ArrayList<>(), new ArrayList<>());
         }
     }
 
-    // Salva uma cópia do planejamento no arquivo que o usuário escolher
+    private void configurarEventos() {
+        // Barra de planejamentos no topo
+        view.onTrocarPlanejamento(this::abrir);
+        view.onNovoPlanejamento(e -> novo());
+        view.onSalvarComo(e -> salvarComo());
+        view.onRenomear(e -> renomear());
+        view.onExcluirPlanejamento(e -> excluir());
+
+        // Botões da aba Resumo
+        view.getResumoPanel().onSalvar(e -> salvar());
+        view.getResumoPanel().onCarregar(e -> {
+            String nome = view.escolherPlanejamento(PlanejamentoController.listar(), planejamentos.getNomeAtual());
+            if (nome != null) abrir(nome);
+        });
+    }
+
+    // Ações dos planejamentos
+
     private void salvar() {
-        ResumoPanel resumo = view.getResumoPanel();
-        File arquivo = resumo.escolherArquivo(true);
-        if (arquivo == null) return;
         try {
-            Persistencia<DadosSalvos> escolhido = new ArquivoPersistence<>(arquivo.toPath(), DadosSalvos.class);
-            escolhido.salvar(dados);
-            resumo.mostrarInfo("Planejamento salvo em " + arquivo.getName());
-        } catch (RuntimeException e) {
-            resumo.mostrarErro("Erro ao salvar o arquivo.");
-        }
-    }
-
-    // Se der erro ao carregar, o planejamento em uso continua igual
-    private void carregar() {
-        ResumoPanel resumo = view.getResumoPanel();
-        File arquivo = resumo.escolherArquivo(false);
-        if (arquivo == null) return;
-        try {
-            Persistencia<DadosSalvos> escolhido = new ArquivoPersistence<>(arquivo.toPath(), DadosSalvos.class);
-            DadosSalvos novos = escolhido.carregar();
-            // Troca tudo de uma vez (não soma), assim não duplica registros
-            dados.definirParticipantes(new ArrayList<>(novos.getParticipantes()));
-            dados.definirDespesas(new ArrayList<>(novos.getDespesas()));
             persistencia.salvar(dados);
-            recarregarTelas();
-            resumo.mostrarInfo("Planejamento carregado de " + arquivo.getName());
-        } catch (ArquivoNaoEncontradoException e) {
-            resumo.mostrarErro("Arquivo não encontrado.");
+            view.mostrarInfo("Planejamento \"" + planejamentos.getNomeAtual() + "\" salvo com sucesso!");
         } catch (RuntimeException e) {
-            resumo.mostrarErro("Arquivo inválido, o planejamento atual foi mantido.");
+            view.mostrarErro("Erro ao salvar: " + e.getMessage());
         }
     }
 
-    // Atualiza todas as abas com os dados atuais
+    private void abrir(String nome) {
+        if (nome == null || nome.equals(planejamentos.getNomeAtual())) return;
+        try {
+            persistencia.salvar(dados); // garante que o atual está gravado antes de trocar
+            DadosSalvos novos = PlanejamentoController.ler(nome);
+            trocarPara(nome, novos);
+        } catch (ArquivoNaoEncontradoException e) {
+            view.mostrarErro("Planejamento \"" + nome + "\" não encontrado.");
+            recarregarTelas();
+        } catch (RuntimeException e) {
+            view.mostrarErro("Erro ao abrir: " + e.getMessage());
+            recarregarTelas();
+        }
+    }
+
+    private void novo() {
+        String nome = pedirNomeNovo("Nome do novo planejamento (ex.: Praia, Cinema):", "");
+        if (nome == null) return;
+        persistencia.salvar(dados);
+        trocarPara(nome, new DadosSalvos(new ArrayList<>(), new ArrayList<>()));
+    }
+
+    // Copia o planejamento atual com outro nome (ex: usar a praia de base pra chácara)
+    private void salvarComo() {
+        String nome = pedirNomeNovo("Salvar uma cópia deste planejamento com o nome:", planejamentos.getNomeAtual() + " (cópia)");
+        if (nome == null) return;
+        persistencia.salvar(dados);
+        trocarPara(nome, dados);
+    }
+
+    private void renomear() {
+        String antigo = planejamentos.getNomeAtual();
+        String nome = pedirNomeNovo("Novo nome para \"" + antigo + "\":", antigo);
+        if (nome == null) return;
+        try {
+            trocarPara(nome, dados);
+            PlanejamentoController.apagar(antigo);
+            recarregarTelas();
+        } catch (Exception e) {
+            view.mostrarErro("Erro ao renomear: " + e.getMessage());
+        }
+    }
+
+    private void excluir() {
+        String atual = planejamentos.getNomeAtual();
+        if (!view.confirmar("Excluir o planejamento \"" + atual + "\" com todas as pessoas e despesas?")) return;
+        try {
+            PlanejamentoController.apagar(atual);
+            List<String> restantes = PlanejamentoController.listar();
+            if (restantes.isEmpty()) {
+                trocarPara(PlanejamentoController.PADRAO, new DadosSalvos(new ArrayList<>(), new ArrayList<>()));
+            } else {
+                trocarPara(restantes.get(0), PlanejamentoController.ler(restantes.get(0)));
+            }
+        } catch (Exception e) {
+            view.mostrarErro("Erro ao excluir: " + e.getMessage());
+        }
+    }
+
+    // Fica pedindo o nome até ser um que não existe. null = cancelou
+    private String pedirNomeNovo(String mensagem, String sugestao) {
+        String nome = view.pedirNome(mensagem, sugestao);
+        while (nome != null) {
+            nome = PlanejamentoController.limparNome(nome);
+            if (nome.isEmpty()) {
+                view.mostrarErro("Informe um nome.");
+            } else if (PlanejamentoController.existe(nome)) {
+                view.mostrarErro("Já existe um planejamento chamado \"" + nome + "\".");
+            } else {
+                return nome;
+            }
+            nome = view.pedirNome(mensagem, nome);
+        }
+        return null;
+    }
+
+    // Coloca os dados do planejamento escolhido e passa a salvar no arquivo dele
+    private void trocarPara(String nome, DadosSalvos novos) {
+        List<Participante> participantes = new ArrayList<>(novos.getParticipantes());
+        List<Despesa> despesas = new ArrayList<>(novos.getDespesas());
+        dados.definirParticipantes(participantes);
+        dados.definirDespesas(despesas);
+        persistencia.setCaminhoArquivo(PlanejamentoController.arquivoDe(nome));
+        persistencia.salvar(dados);
+        planejamentos.setNomeAtual(nome);
+        view.getDespesasPanel().limparFormulario();
+        view.getParticipantesPanel().limparFormulario();
+        recarregarTelas();
+    }
+
+    // Atualiza todas as abas e a barra de planejamentos
     private void recarregarTelas() {
+        view.setPlanejamentos(PlanejamentoController.listar(), planejamentos.getNomeAtual());
         participanteController.atualizarTabela();
+        despesaController.refreshParticipantes();
         despesaController.atualizarTabela();
-        resumoController.atualizarResumo();
+        resumoController.atualizarResumo(null);
     }
 
     /**
@@ -123,8 +217,19 @@ public class MainController {
         view.setVisible(true);
     }
 
-    // Ponto de entrada do programa. invokeLater porque o Swing tem que ser criado na thread da interface
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new MainController().iniciar());
+    public ParticipanteService getParticipanteService() {
+        return participanteService;
+    }
+
+    public DespesaService getDespesaService() {
+        return despesaService;
+    }
+
+    public DadosSalvos getDadosSalvos() {
+        return dados;
+    }
+
+    public ArquivoPersistence<DadosSalvos> getPersistencia() {
+        return persistencia;
     }
 }
